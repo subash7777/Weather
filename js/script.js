@@ -7,10 +7,11 @@ let presurre = document.querySelector('.weather__indicator--pressure>.value');
 let image = document.querySelector('.weather__image');
 let temperature = document.querySelector('.weather__temperature>.value');
 let forecastBlock = document.querySelector('.weather__forecast');
+let suggestions = document.querySelector('#suggestions');
 //let weatherAPIKey = '';
 let weatherBaseEndpoint = 'https://api.openweathermap.org/data/2.5/weather?units=metric&appid=' + weatherAPIKey;
 let forecastBaseEndpoint = 'https://api.openweathermap.org/data/2.5/forecast?units=metric&appid=' + weatherAPIKey;
-
+let cityBaseEndpoint = 'https://api.teleport.org/api/cities/?search='
 
 let weatherImages = [
 {
@@ -52,11 +53,20 @@ let weatherImages = [
 }
 ]
 
-let getWeatherByCityName = async (city) => {
+let getWeatherByCityName = async (cityString) => {
+    let city;
+    if(cityString.includes(',')) {
+        city = cityString.substring(0, cityString.indexOf(',')) + cityString.substring(cityString.lastIndexOf(','));
+    } else {
+        city = cityString;
+    }
     let endpoint = weatherBaseEndpoint + '&q=' + city;
     let response = await fetch(endpoint);
+    if(response.status !== 200) {
+        alert('City not found');
+        return;
+    }
     let weather = await response.json();
-    console.log(weather);
     return weather;
 }
 
@@ -78,14 +88,39 @@ let getForecastByCityID = async (id) => {
     return daily;
 
 }
-
-searchInp.addEventListener('keydown', async (e) => {
-    if(e.keyCode === 13) {
-        let weather = await getWeatherByCityName(searchInp.value);
+let weatherForCity = async (city) => {
+    let weather = await getWeatherByCityName(city);
+        if(!weather){
+            return;
+        }
         let CityID = weather.id;
     updateCurrentWeather(weather);
     let forecast = await getForecastByCityID(CityID);
     updateForecast(forecast);
+
+}
+let init = () => {
+    weatherForCity('Kathmandu').then(() => document.body.style.filter = 'blur(0)');
+
+}
+init();
+searchInp.addEventListener('keydown', async (e) => {
+    if(e.keyCode === 13) {
+        weatherForCity(searchInp.value);
+        
+    }
+})
+
+searchInp.addEventListener('input', async () => {
+    let endpoint = cityBaseEndpoint + searchInp.value;
+    let result = await (await fetch(endpoint)).json();
+    suggestions.innerHTML = '';
+    let cities = result._embedded['city:search-results'];
+    let length = cities.length > 5 ? 5 : cities.length;
+    for(let i =0; i < length; i++) {
+        let option = document.createElement('option');
+        option.value = cities[i].matching_full_name;
+        suggestions.appendChild(option);
     }
 })
 
